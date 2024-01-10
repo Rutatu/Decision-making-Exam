@@ -1,0 +1,77 @@
+model {
+  for (i in 1:N) { # N = number of songs
+    is_high_groove[i] <- equals(grooveLevel[i], 1)
+    
+    for (j in 1:P) { # P = number of participants
+    
+      # Sub-model for Familiarity as influenced by MSI
+      Familiarity[i, j] ~ dnorm(mu_Familiarity[i, j], tau_fam)
+      mu_Familiarity[i, j] <- gamma0 + gamma1 * MSI[i, j]
+    
+      # Pleasure Rating Model for High Groove Songs
+      lambda_high[i, j] <- exp(beta0_high + 
+                               beta1_high * objGrooveRating[i] +
+                               beta2_high * MSI[i, j] +
+                               beta3_high * Familiarity[i, j] +
+                               # Interaction term example: Objective Groove Rating * MSI
+                               beta4_high * objGrooveRating[i] * MSI[i, j] +
+                               beta5_high * DSI[i, j] +
+                               participant_effect[j]) # random effects
+      rating_high[i, j] ~ dpois(lambda_high[i, j]) 
+      truncation_high[i, j] <- step(rating_high[i, j] - 1) # Zero-Truncated Poisson
+
+      # Pleasure Rating Model for Low Groove Songs
+      lambda_low[i, j] <- exp(beta0_low + 
+                              beta1_low * objGrooveRating[i] +
+                              beta2_low * MSI[i, j] +
+                              beta3_low * Familiarity[i, j] +
+                              beta4_low * DSI[i, j] +
+                              participant_effect[j]) # random effects
+      rating_low[i, j] ~ dpois(lambda_low[i, j]) 
+      truncation_low[i, j] <- step(rating_low[i, j] - 1) # Zero-Truncated Poisson
+
+      # Observations using an indicator variable
+      rating[i, j] ~ dpois(is_high_groove[i] * lambda_high[i, j] + (1 - is_high_groove[i]) * lambda_low[i, j])
+    }
+  }
+  
+  
+  # Priors for all parameters
+
+
+  # Priors for Familiarity sub-model coefficients
+  gamma0 ~ dnorm(0, .01)
+  gamma1 ~ dnorm(0, .01)
+
+  # Priors for Pleasure Rating Model for High Groove Songs
+  beta0_high ~ dnorm(0, .1)
+  beta1_high ~ dnorm(0, .1)
+  beta2_high ~ dnorm(0, .1)
+  beta3_high ~ dnorm(0, .1)
+  beta4_high ~ dnorm(0, .1)
+  beta5_high ~ dnorm(0, .1)
+
+  
+
+  # Priors for Pleasure Rating Model for Low Groove Songs
+  beta0_low ~ dnorm(0, .1)
+  beta1_low ~ dnorm(0, .1)
+  beta2_low ~ dnorm(0, .1)
+  beta3_low ~ dnorm(0, .1)
+  beta4_low ~ dnorm(0, .1)
+
+  # Priors for Random Effects
+  #tau_participant ~ dgamma(0.01, 0.01)
+  # Priors for the participant_effect
+  for (j in 1:P) {
+    participant_effect[j] ~ dnorm(0, tau_participant_effect)
+  }
+  tau_participant_effect ~ dgamma(1.0, 0.1)  # Hyperprior for the precision of participant effects
+
+  
+  # Precision for familiarity model
+  tau_fam ~ dgamma(0.01, 0.01)
+  
+  
+  
+}
